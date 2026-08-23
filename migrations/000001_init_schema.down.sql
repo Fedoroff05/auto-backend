@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS analytics_events;
+DROP TABLE IF EXISTS ab_experiments;
+DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS chats;
+DROP TABLE IF EXISTS favorites;
+DROP TABLE IF EXISTS listing_images;
+DROP TABLE IF EXISTS listings;
+DROP TABLE IF EXISTS car_models;
+DROP TABLE IF EXISTS car_brands;
+DROP TABLE IF EXISTS users;
+
+DROP TYPE IF EXISTS listing_status;
+DROP TYPE IF EXISTS user_role;
