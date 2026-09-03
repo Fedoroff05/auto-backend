@@ -21,6 +21,16 @@ import (
 	pkgPostgres "github.com/Fedoroff05/auto-backend/pkg/postgres"
 )
 
+// @title           Auto Service Backend API
+// @version         1.0
+// @description     REST API для сервиса объявлений по продаже автомобилей.
+// @host            localhost:8080
+// @BasePath        /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Токен доступа в формате: Bearer <token>
 func main() {
 	//инициализация конфигурации
 	cfg, err := config.GetConfig()
