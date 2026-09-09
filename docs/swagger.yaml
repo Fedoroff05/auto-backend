@@ -1,5 +1,81 @@
 basePath: /api/v1
 definitions:
+  domain.CarBrand:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  domain.CarModel:
+    properties:
+      brand_id:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  domain.Listing:
+    properties:
+      brand_id:
+        type: integer
+      brand_name:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      images:
+        items:
+          $ref: '#/definitions/domain.ListingImage'
+        type: array
+      mileage:
+        type: integer
+      model_id:
+        type: integer
+      model_name:
+        type: string
+      price:
+        type: number
+      status:
+        $ref: '#/definitions/domain.ListingStatus'
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      vin:
+        type: string
+      year:
+        type: integer
+    type: object
+  domain.ListingImage:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      image_url:
+        type: string
+      is_main:
+        type: boolean
+      listing_id:
+        type: string
+    type: object
+  domain.ListingStatus:
+    enum:
+    - draft
+    - active
+    - sold
+    - banned
+    type: string
+    x-enum-varnames:
+    - ListingStatusDraft
+    - ListingStatusActive
+    - ListingStatusSold
+    - ListingStatusBanned
   domain.Role:
     enum:
     - user
@@ -46,6 +122,32 @@ definitions:
         type: string
       refresh_token:
         type: string
+    type: object
+  v1.createListingRequest:
+    properties:
+      brand_id:
+        type: integer
+      description:
+        type: string
+      mileage:
+        type: integer
+      model_id:
+        type: integer
+      price:
+        type: number
+      vin:
+        type: string
+      year:
+        type: integer
+    type: object
+  v1.listResponse:
+    properties:
+      listings:
+        items:
+          $ref: '#/definitions/domain.Listing'
+        type: array
+      total:
+        type: integer
     type: object
   v1.loginRequest:
     properties:
@@ -211,6 +313,238 @@ paths:
       summary: Регистрация нового пользователя
       tags:
       - auth
+  /brands:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.CarBrand'
+                  type: array
+              type: object
+      summary: Список всех марок авто
+      tags:
+      - catalog
+  /brands/{brand_id}/models:
+    get:
+      parameters:
+      - description: ID марки
+        in: path
+        name: brand_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.CarModel'
+                  type: array
+              type: object
+      summary: Список моделей марки
+      tags:
+      - catalog
+  /listings:
+    get:
+      parameters:
+      - description: ID марки
+        in: query
+        name: brand_id
+        type: integer
+      - description: ID модели
+        in: query
+        name: model_id
+        type: integer
+      - description: Цена от
+        in: query
+        name: min_price
+        type: number
+      - description: Цена до
+        in: query
+        name: max_price
+        type: number
+      - description: Год от
+        in: query
+        name: min_year
+        type: integer
+      - description: Год до
+        in: query
+        name: max_year
+        type: integer
+      - description: Лимит на страницу
+        in: query
+        name: limit
+        type: integer
+      - description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.listResponse'
+              type: object
+      summary: Поиск по каталогу объявлений с фильтрами
+      tags:
+      - listings
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные авто
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.createListingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.Listing'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Создание объявления
+      tags:
+      - listings
+  /listings/{id}:
+    delete:
+      parameters:
+      - description: ID объявления
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Удаление объявления
+      tags:
+      - listings
+    get:
+      parameters:
+      - description: ID объявления
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.Listing'
+              type: object
+      summary: Получение объявления по ID
+      tags:
+      - listings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID объявления
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Новые данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.createListingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.Listing'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Обновление объявления
+      tags:
+      - listings
+  /listings/{id}/images:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: ID объявления
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Файл картинки (jpg, png, webp)
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.ListingImage'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Загрузка фотографии к объявлению
+      tags:
+      - listings
 securityDefinitions:
   BearerAuth:
     description: 'Токен доступа в формате: Bearer <token>'

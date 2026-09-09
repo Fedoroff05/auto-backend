@@ -12,27 +12,27 @@ import (
 	"github.com/Fedoroff05/auto-backend/pkg/jwt"
 )
 
-func NewRouter(authHandler *v1.AuthHandler, tokenManager *jwt.TokenManager) *chi.Mux {
+func NewRouter(
+	authHandler *v1.AuthHandler,
+	listingHandler *v1.ListingHandler,
+	tokenManager *jwt.TokenManager,
+) *chi.Mux {
 	r := chi.NewRouter()
 
-	//база
 	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 
-	//настройка CORS для взаимодействия с фронтендом
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
-		MaxAge:           300, //кэширование preflight-запросов на 5 минут
+		MaxAge:           300,
 	}))
 
-	//эндпоинт для Swagger UI
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
-	//маршруты API
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", authHandler.Register)
@@ -42,6 +42,22 @@ func NewRouter(authHandler *v1.AuthHandler, tokenManager *jwt.TokenManager) *chi
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.AuthMiddleware(tokenManager))
 				r.Get("/profile", authHandler.GetProfile)
+			})
+		})
+
+		r.Get("/brands", listingHandler.GetBrands)
+		r.Get("/brands/{brand_id}/models", listingHandler.GetModels)
+
+		r.Route("/listings", func(r chi.Router) {
+			r.Get("/", listingHandler.List)
+			r.Get("/{id}", listingHandler.GetByID)
+
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.AuthMiddleware(tokenManager))
+				r.Post("/", listingHandler.Create)
+				r.Put("/{id}", listingHandler.Update)
+				r.Delete("/{id}", listingHandler.Delete)
+				r.Post("/{id}/images", listingHandler.UploadImage)
 			})
 		})
 	})
