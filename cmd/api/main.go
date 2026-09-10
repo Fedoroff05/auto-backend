@@ -14,6 +14,7 @@ import (
 	"github.com/Fedoroff05/auto-backend/config"
 	deliveryHttp "github.com/Fedoroff05/auto-backend/internal/handler/http"
 	v1 "github.com/Fedoroff05/auto-backend/internal/handler/http/v1"
+	"github.com/Fedoroff05/auto-backend/internal/handler/ws"
 	"github.com/Fedoroff05/auto-backend/internal/repository/postgres"
 	"github.com/Fedoroff05/auto-backend/internal/usecase"
 	"github.com/Fedoroff05/auto-backend/pkg/hasher"
@@ -34,7 +35,6 @@ import (
 // @name Authorization
 // @description Токен доступа в формате: Bearer <token>
 func main() {
-	//инициализация конфигурации
 	cfg, err := config.GetConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -43,7 +43,6 @@ func main() {
 
 	ctx := context.Background()
 
-	//инициализация пула соединений PostgreSQL
 	pgPool, err := pkgPostgres.New(ctx, pkgPostgres.Config{
 		DSN:             cfg.Postgres.DSN(),
 		MaxConns:        cfg.Postgres.MaxConns,
@@ -57,7 +56,6 @@ func main() {
 	defer pgPool.Close()
 	log.Println("PostgreSQL connection pool initialized")
 
-	//инициализация клиента Redis
 	redisClient, err := pkgRedis.NewClient(ctx, pkgRedis.Config{
 		Host:     cfg.Redis.Host,
 		Port:     cfg.Redis.Port,
@@ -68,7 +66,6 @@ func main() {
 	}
 	log.Println("Redis client initialized")
 
-	//инициализация клиента MinIO S3
 	s3Client, err := pkgS3.NewClient(ctx, pkgS3.Config{
 		Endpoint:        cfg.MinIO.Endpoint,
 		AccessKeyID:     cfg.MinIO.RootUser,
@@ -81,40 +78,52 @@ func main() {
 	}
 	log.Println("MinIO S3 client initialized and bucket verified")
 
-	//вспомогательные криптографические сервисы
 	passwordHasher := hasher.NewBcryptHasher(10)
 	tokenManager, err := jwt.NewTokenManager(cfg.JWT.SecretKey, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
 	if err != nil {
 		log.Fatalf("Failed to init token manager: %v", err)
 	}
 
-	//слой репозиториев (Repository Layer)
+	//repositories
 	userRepo := postgres.NewUserRepository(pgPool)
 	listingRepo := postgres.NewListingRepository(pgPool)
 	valRepo := postgres.NewValuationRepository(pgPool)
 	favRepo := postgres.NewFavoriteRepository(pgPool)
+	chatRepo := postgres.NewChatRepository(pgPool)
+	abRepo := postgres.NewABRepository(pgPool)
 
-	//слой бизнес-логики (Usecase Layer)
+	//usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo, passwordHasher, tokenManager)
 	listingUsecase := usecase.NewListingUsecase(listingRepo, s3Client)
 	valUsecase := usecase.NewValuationUsecase(valRepo)
 	favUsecase := usecase.NewFavoriteUsecase(favRepo, listingRepo, redisClient)
+	chatUsecase := usecase.NewChatUsecase(chatRepo, listingRepo)
+	abUsecase := usecase.NewABUsecase(abRepo)
 
-	//слой доставки (Delivery Layer)
+	//WebSocket Hub
+	wsHub := ws.NewHub()
+	go wsHub.Run()
+	log.Println("WebSocket Hub event loop started")
+
+	//handlers
 	authHandler := v1.NewAuthHandler(authUsecase)
 	listingHandler := v1.NewListingHandler(listingUsecase)
 	valHandler := v1.NewValuationHandler(valUsecase)
 	favHandler := v1.NewFavoriteHandler(favUsecase)
+	chatHandler := v1.NewChatHandler(chatUsecase, wsHub, tokenManager)
+	abHandler := v1.NewABHandler(abUsecase)
 
+	//router
 	router := deliveryHttp.NewRouter(
 		authHandler,
 		listingHandler,
 		valHandler,
 		favHandler,
+		chatHandler,
+		abHandler,
 		tokenManager,
 	)
 
-	//настройка HTTP-сервера
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.HTTP.Port),
 		Handler:      router,

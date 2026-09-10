@@ -17,15 +17,15 @@ func NewRouter(
 	listingHandler *v1.ListingHandler,
 	valuationHandler *v1.ValuationHandler,
 	favoriteHandler *v1.FavoriteHandler,
+	chatHandler *v1.ChatHandler,
+	abHandler *v1.ABHandler,
 	tokenManager *jwt.TokenManager,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
-	//базовые middleware
 	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 
-	//настройка CORS для взаимодействия с фронтендом
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -37,7 +37,11 @@ func NewRouter(
 
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
+	//WebSocket роут (эндпоинт /ws?token=...)
+	r.Get("/ws", chatHandler.ConnectWS)
+
 	r.Route("/api/v1", func(r chi.Router) {
+		//auth
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
@@ -49,9 +53,11 @@ func NewRouter(
 			})
 		})
 
+		//catalog
 		r.Get("/brands", listingHandler.GetBrands)
 		r.Get("/brands/{brand_id}/models", listingHandler.GetModels)
 
+		//listings
 		r.Route("/listings", func(r chi.Router) {
 			r.Get("/", listingHandler.List)
 			r.Get("/{id}", listingHandler.GetByID)
@@ -65,13 +71,33 @@ func NewRouter(
 			})
 		})
 
+		//valuation
 		r.Get("/valuation/estimate", valuationHandler.EstimatePrice)
 
+		//favorites
 		r.Route("/favorites", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(tokenManager))
 			r.Get("/", favoriteHandler.GetUserFavorites)
 			r.Post("/{listing_id}", favoriteHandler.Add)
 			r.Delete("/{listing_id}", favoriteHandler.Remove)
+		})
+
+		//chats
+		r.Route("/chats", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(tokenManager))
+			r.Get("/", chatHandler.GetUserChats)
+			r.Post("/start", chatHandler.StartChat)
+			r.Get("/{chat_id}/messages", chatHandler.GetMessages)
+		})
+
+		//AB testing
+		r.Route("/ab", func(r chi.Router) {
+			r.Post("/events", abHandler.TrackEvent)
+
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.AuthMiddleware(tokenManager))
+				r.Get("/variant", abHandler.GetVariant)
+			})
 		})
 	})
 

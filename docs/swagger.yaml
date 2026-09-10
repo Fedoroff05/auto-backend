@@ -16,6 +16,19 @@ definitions:
       name:
         type: string
     type: object
+  domain.Chat:
+    properties:
+      buyer_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      listing_id:
+        type: string
+      seller_id:
+        type: string
+    type: object
   domain.Listing:
     properties:
       brand_id:
@@ -90,6 +103,21 @@ definitions:
         type: integer
       target_year:
         type: integer
+    type: object
+  domain.Message:
+    properties:
+      chat_id:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_read:
+        type: boolean
+      sender_id:
+        type: string
     type: object
   domain.Role:
     enum:
@@ -187,6 +215,13 @@ definitions:
       phone:
         type: string
     type: object
+  v1.startChatRequest:
+    properties:
+      listing_id:
+        type: string
+    type: object
+  v1.trackEventRequest:
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -194,6 +229,55 @@ info:
   title: Auto Service Backend API
   version: "1.0"
 paths:
+  /ab/events:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Событие аналитики
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.trackEventRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      summary: Залогировать аналитическое событие пользователя
+      tags:
+      - ab-testing
+  /ab/variant:
+    get:
+      parameters:
+      - description: Название эксперимента
+        in: query
+        name: experiment
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Получить вариант A/B теста для текущего пользователя
+      tags:
+      - ab-testing
   /auth/login:
     post:
       consumes:
@@ -372,6 +456,90 @@ paths:
       summary: Список моделей марки
       tags:
       - catalog
+  /chats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.Chat'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Список всех чатов пользователя
+      tags:
+      - chats
+  /chats/{chat_id}/messages:
+    get:
+      parameters:
+      - description: ID чата
+        in: path
+        name: chat_id
+        required: true
+        type: string
+      - description: Лимит
+        in: query
+        name: limit
+        type: integer
+      - description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.Message'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: История сообщений чата
+      tags:
+      - chats
+  /chats/start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID объявления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.startChatRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.Chat'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Создать или получить существующий чат по объявлению
+      tags:
+      - chats
   /favorites:
     get:
       responses:
