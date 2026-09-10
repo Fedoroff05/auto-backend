@@ -15,13 +15,17 @@ import (
 func NewRouter(
 	authHandler *v1.AuthHandler,
 	listingHandler *v1.ListingHandler,
+	valuationHandler *v1.ValuationHandler,
+	favoriteHandler *v1.FavoriteHandler,
 	tokenManager *jwt.TokenManager,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
+	//базовые middleware
 	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 
+	//настройка CORS для взаимодействия с фронтендом
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -59,6 +63,15 @@ func NewRouter(
 				r.Delete("/{id}", listingHandler.Delete)
 				r.Post("/{id}/images", listingHandler.UploadImage)
 			})
+		})
+
+		r.Get("/valuation/estimate", valuationHandler.EstimatePrice)
+
+		r.Route("/favorites", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(tokenManager))
+			r.Get("/", favoriteHandler.GetUserFavorites)
+			r.Post("/{listing_id}", favoriteHandler.Add)
+			r.Delete("/{listing_id}", favoriteHandler.Remove)
 		})
 	})
 

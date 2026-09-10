@@ -19,6 +19,7 @@ import (
 	"github.com/Fedoroff05/auto-backend/pkg/hasher"
 	"github.com/Fedoroff05/auto-backend/pkg/jwt"
 	pkgPostgres "github.com/Fedoroff05/auto-backend/pkg/postgres"
+	pkgRedis "github.com/Fedoroff05/auto-backend/pkg/redis"
 	pkgS3 "github.com/Fedoroff05/auto-backend/pkg/s3"
 )
 
@@ -33,6 +34,7 @@ import (
 // @name Authorization
 // @description Токен доступа в формате: Bearer <token>
 func main() {
+	//инициализация конфигурации
 	cfg, err := config.GetConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -41,6 +43,7 @@ func main() {
 
 	ctx := context.Background()
 
+	//инициализация пула соединений PostgreSQL
 	pgPool, err := pkgPostgres.New(ctx, pkgPostgres.Config{
 		DSN:             cfg.Postgres.DSN(),
 		MaxConns:        cfg.Postgres.MaxConns,
@@ -54,6 +57,18 @@ func main() {
 	defer pgPool.Close()
 	log.Println("PostgreSQL connection pool initialized")
 
+	//инициализация клиента Redis
+	redisClient, err := pkgRedis.NewClient(ctx, pkgRedis.Config{
+		Host:     cfg.Redis.Host,
+		Port:     cfg.Redis.Port,
+		Password: cfg.Redis.Password,
+	})
+	if err != nil {
+		log.Fatalf("Failed to connect to redis: %v", err)
+	}
+	log.Println("Redis client initialized")
+
+	//инициализация клиента MinIO S3
 	s3Client, err := pkgS3.NewClient(ctx, pkgS3.Config{
 		Endpoint:        cfg.MinIO.Endpoint,
 		AccessKeyID:     cfg.MinIO.RootUser,
@@ -66,19 +81,40 @@ func main() {
 	}
 	log.Println("MinIO S3 client initialized and bucket verified")
 
+	//вспомогательные криптографические сервисы
 	passwordHasher := hasher.NewBcryptHasher(10)
 	tokenManager, err := jwt.NewTokenManager(cfg.JWT.SecretKey, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
 	if err != nil {
 		log.Fatalf("Failed to init token manager: %v", err)
 	}
+
+	//слой репозиториев (Repository Layer)
 	userRepo := postgres.NewUserRepository(pgPool)
 	listingRepo := postgres.NewListingRepository(pgPool)
+	valRepo := postgres.NewValuationRepository(pgPool)
+	favRepo := postgres.NewFavoriteRepository(pgPool)
+
+	//слой бизнес-логики (Usecase Layer)
 	authUsecase := usecase.NewAuthUsecase(userRepo, passwordHasher, tokenManager)
 	listingUsecase := usecase.NewListingUsecase(listingRepo, s3Client)
+	valUsecase := usecase.NewValuationUsecase(valRepo)
+	favUsecase := usecase.NewFavoriteUsecase(favRepo, listingRepo, redisClient)
+
+	//слой доставки (Delivery Layer)
 	authHandler := v1.NewAuthHandler(authUsecase)
 	listingHandler := v1.NewListingHandler(listingUsecase)
-	router := deliveryHttp.NewRouter(authHandler, listingHandler, tokenManager)
+	valHandler := v1.NewValuationHandler(valUsecase)
+	favHandler := v1.NewFavoriteHandler(favUsecase)
 
+	router := deliveryHttp.NewRouter(
+		authHandler,
+		listingHandler,
+		valHandler,
+		favHandler,
+		tokenManager,
+	)
+
+	//настройка HTTP-сервера
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.HTTP.Port),
 		Handler:      router,

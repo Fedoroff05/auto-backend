@@ -309,6 +309,124 @@
                 }
             }
         },
+        "/favorites": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "favorites"
+                ],
+                "summary": "Получить список избранных авто пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/domain.Listing"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/favorites/{listing_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "favorites"
+                ],
+                "summary": "Добавить авто в избранное",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID объявления",
+                        "name": "listing_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "favorites"
+                ],
+                "summary": "Удалить авто из избранного",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID объявления",
+                        "name": "listing_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/listings": {
             "get": {
                 "produces": [
@@ -630,6 +748,60 @@
                     }
                 }
             }
+        },
+        "/valuation/estimate": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "valuation"
+                ],
+                "summary": "Оценка рыночной стоимости автомобиля",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID марки",
+                        "name": "brand_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID модели",
+                        "name": "model_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Год выпуска",
+                        "name": "year",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/domain.MarketValuationResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -745,6 +917,29 @@
                 "ListingStatusSold",
                 "ListingStatusBanned"
             ]
+        },
+        "domain.MarketValuationResult": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "integer"
+                },
+                "estimated_price": {
+                    "type": "number"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "model_id": {
+                    "type": "integer"
+                },
+                "sample_count": {
+                    "type": "integer"
+                },
+                "target_year": {
+                    "type": "integer"
+                }
+            }
         },
         "domain.Role": {
             "type": "string",
