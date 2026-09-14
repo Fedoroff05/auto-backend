@@ -52,7 +52,7 @@ func (u *AuthUsecase) Register(ctx context.Context, email, password, name string
 		PasswordHash: hashedPassword,
 		Name:         cleanName,
 		Phone:        phone,
-		Role:         domain.RoleUser, //новые пользователи всегда получают базовую роль
+		Role:         domain.RoleUser,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}

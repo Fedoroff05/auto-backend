@@ -18,26 +18,30 @@ func NewFavoriteRepository(pool *pgxpool.Pool) *FavoriteRepository {
 	return &FavoriteRepository{pool: pool}
 }
 
-func (r *FavoriteRepository) Add(ctx context.Context, userID, listingID uuid.UUID) error {
+func (r *FavoriteRepository) Add(ctx context.Context, userID, listingID uuid.UUID) (bool, error) {
 	query := `
 		INSERT INTO favorites (user_id, listing_id, created_at)
 		VALUES ($1, $2, NOW())
 		ON CONFLICT (user_id, listing_id) DO NOTHING
 	`
-	_, err := r.pool.Exec(ctx, query, userID, listingID)
+
+	tag, err := r.pool.Exec(ctx, query, userID, listingID)
 	if err != nil {
-		return fmt.Errorf("failed to add favorite: %w", err)
+		return false, fmt.Errorf("failed to add favorite: %w", err)
 	}
-	return nil
+
+	return tag.RowsAffected() > 0, nil
 }
 
-func (r *FavoriteRepository) Remove(ctx context.Context, userID, listingID uuid.UUID) error {
+func (r *FavoriteRepository) Remove(ctx context.Context, userID, listingID uuid.UUID) (bool, error) {
 	query := `DELETE FROM favorites WHERE user_id = $1 AND listing_id = $2`
-	_, err := r.pool.Exec(ctx, query, userID, listingID)
+
+	tag, err := r.pool.Exec(ctx, query, userID, listingID)
 	if err != nil {
-		return fmt.Errorf("failed to remove favorite: %w", err)
+		return false, fmt.Errorf("failed to remove favorite: %w", err)
 	}
-	return nil
+
+	return tag.RowsAffected() > 0, nil
 }
 
 func (r *FavoriteRepository) IsFavorite(ctx context.Context, userID, listingID uuid.UUID) (bool, error) {

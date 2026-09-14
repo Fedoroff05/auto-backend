@@ -26,8 +26,8 @@ type Favorite struct {
 
 // контракт для избранного
 type FavoriteRepository interface {
-	Add(ctx context.Context, userID, listingID uuid.UUID) error
-	Remove(ctx context.Context, userID, listingID uuid.UUID) error
+	Add(ctx context.Context, userID, listingID uuid.UUID) (bool, error)
+	Remove(ctx context.Context, userID, listingID uuid.UUID) (bool, error)
 	IsFavorite(ctx context.Context, userID, listingID uuid.UUID) (bool, error)
 	GetUserFavorites(ctx context.Context, userID uuid.UUID) ([]Listing, error)
 }

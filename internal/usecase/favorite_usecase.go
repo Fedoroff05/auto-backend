@@ -33,24 +33,31 @@ func (u *FavoriteUsecase) AddToFavorites(ctx context.Context, userID, listingID 
 	if _, err := u.listingRepo.GetByID(ctx, listingID); err != nil {
 		return err
 	}
-	if err := u.favRepo.Add(ctx, userID, listingID); err != nil {
+
+	added, err := u.favRepo.Add(ctx, userID, listingID)
+	if err != nil {
 		return err
 	}
 
-	key := fmt.Sprintf("listing:fav_count:%s", listingID.String())
-	_ = u.redisClient.Incr(ctx, key)
+	if added {
+		key := fmt.Sprintf("listing:fav_count:%s", listingID.String())
+		_ = u.redisClient.Incr(ctx, key)
+	}
 
 	return nil
 }
 
 // удаляет из бд и декрементит счетчик в redis
 func (u *FavoriteUsecase) RemoveFromFavorites(ctx context.Context, userID, listingID uuid.UUID) error {
-	if err := u.favRepo.Remove(ctx, userID, listingID); err != nil {
+	removed, err := u.favRepo.Remove(ctx, userID, listingID)
+	if err != nil {
 		return err
 	}
 
-	key := fmt.Sprintf("listing:fav_count:%s", listingID.String())
-	_ = u.redisClient.Decr(ctx, key)
+	if removed {
+		key := fmt.Sprintf("listing:fav_count:%s", listingID.String())
+		_ = u.redisClient.Decr(ctx, key)
+	}
 
 	return nil
 }

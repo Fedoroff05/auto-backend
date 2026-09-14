@@ -112,7 +112,7 @@ func (u *ListingUsecase) DeleteListing(ctx context.Context, userID uuid.UUID, us
 	return u.listingRepo.Delete(ctx, listingID)
 }
 
-// валидирует файл, заливает в MinIO и сохраняет ссылку в Postgres
+// валидирует файл, заливает в MinIO и сохраняет ссылку
 func (u *ListingUsecase) UploadImage(ctx context.Context, userID uuid.UUID, userRole domain.Role, listingID uuid.UUID, fileName string, fileBytes []byte) (*domain.ListingImage, error) {
 	existing, err := u.listingRepo.GetByID(ctx, listingID)
 	if err != nil {
